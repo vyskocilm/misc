@@ -1,9 +1,13 @@
-
 /**
  *  wc (word count) implementation in Rust
  *
  *  The purpose is to learn Rust a bit
  *
+ *  author: michal.vyskocil@gmail.com
+ *
+ * TODO:
+ *   * output is not properly formatted
+ *   * word splitting is done on space only, where manual page claims whitespace
  */
 
 use std::io::{BufferedReader, Reader, File, Lines, Buffer, IoError};
@@ -17,13 +21,21 @@ pub struct WordCount {
     pub bytes: uint
 }
 
+impl WordCount {
+    fn sum(&mut self, other: &WordCount) {
+        self.lines += other.lines;
+        self.words += other.words;
+        self.chars += other.chars;
+        self.bytes += other.bytes;
+    }
+}
+
 #[deriving(Show)]
 struct Cfg {
     pub byte_count: bool,
     pub char_count: bool,
     pub line_count: bool,
     pub word_count: bool,
-    pub path: String
 }
 
 fn wc<'r, T: Buffer>(lines : &'r mut Lines<'r, T>) -> Result<WordCount, IoError> {
@@ -43,11 +55,11 @@ fn wc<'r, T: Buffer>(lines : &'r mut Lines<'r, T>) -> Result<WordCount, IoError>
     return Ok(ret);
 }
 
-fn parse_args(args: Vec<String>) -> Cfg {
+fn parse_args(args: Vec<String>) -> (Cfg, Vec<String>) {
     
-    let path = String::new();
-    let mut cfg = Cfg{byte_count: false, char_count: false, line_count: false, word_count: false, path: path};
+    let mut cfg = Cfg{byte_count: false, char_count: false, line_count: false, word_count: false};
     let mut idx = 1u;
+    let mut paths = Vec::new();
 
     while idx < args.len() {
         match args[idx].as_slice() {
@@ -59,22 +71,22 @@ fn parse_args(args: Vec<String>) -> Cfg {
             "-m"      => cfg.char_count = true,
             "--words" => cfg.word_count = true,
             "-w"      => cfg.word_count = true,
-            _ => cfg.path = args[idx].clone()
+            _ => paths.push(args[idx].clone())  //FIXME: unecessary clone
         }
         idx += 1;
     }
 
-    if !cfg.char_count && ! cfg.line_count && !cfg.word_count {
+    if !cfg.byte_count && (!cfg.char_count && ! cfg.line_count && !cfg.word_count) {
         cfg.char_count = true;
         cfg.line_count = true;
         cfg.word_count = true;
     }
 
-    cfg
+    (cfg, paths)
 }
 
 //newline, word, character, byte, maximum line length
-fn print_results(wc : &WordCount, cfg: &Cfg) {
+fn print_results(wc : &WordCount, cfg: &Cfg, path: &str) {
 
     let mut buf = String::new();
 
@@ -99,35 +111,44 @@ fn print_results(wc : &WordCount, cfg: &Cfg) {
         sbuf = sbuf.slice_from(1);
     }
 
-    println!("{:s} {:s}", sbuf, cfg.path);
+    println!("{:s} {:s}", sbuf, path);
 }
 
 fn main() {
 
-    let cfg = parse_args(args());
-    println!("cfg: {}", cfg);
+    let (cfg, paths) = parse_args(args());
+    println!("cfg: {}, paths: {}", cfg, paths);
 
-    if cfg.path.len() == 0 {
+    if paths.len() == 0 {
         fail!("Reading from stdin is not yet implemented");
     }
+    
+    let mut total : WordCount = WordCount { lines: 0u, words: 0u, chars: 0u, bytes: 0u };
 
-    let mut ret : WordCount = WordCount { lines: 0u, words: 0u, chars: 0u, bytes: 0u };
+    for path_i in paths.iter() {
 
-    // TODO: clone is just a workaround
-    let p = Path::new(cfg.path.clone());
-    // errors can be checked on opening file ...
-    let f = match File::open(&p) {
-        Err(why) => fail!("Can't open {}: {}", p.display(), why.desc),
-        Ok(f) => f,
-    };
-    let mut br = BufferedReader::new(f);
+        let path = path_i.as_slice();
 
-    let res = match wc(&mut br.lines()) {
-        Ok(res) => res,
-        Err(e) => fail!(e)
-    };
-    //println!("{} {}", res, p.display());
+        // TODO: clone is just a workaround
+        let p = Path::new(path);
+        // errors can be checked on opening file ...
+        let f = match File::open(&p) {
+            Err(why) => fail!("Can't open {}: {}", p.display(), why.desc),
+            Ok(f) => f,
+        };
+        let mut br = BufferedReader::new(f);
 
-    print_results(&res, &cfg);
+        let res = match wc(&mut br.lines()) {
+            Ok(res) => res,
+            Err(e) => fail!(e)
+        };
+
+        total.sum(&res);
+        print_results(&res, &cfg, path);
+    }
+
+    if paths.len() > 1 {
+        print_results(&total, &cfg, "total");
+    }
 
 }
