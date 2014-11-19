@@ -38,6 +38,60 @@ struct Cfg {
     pub word_count: bool,
 }
 
+fn is_pwr_ten(i: uint) -> bool {
+    if i < 10 {
+        return false;
+    }
+
+    let mut r: uint = i;
+    while r > 10 {
+        if r % 10 != 0 {
+            return false;
+        }
+        r = r / 10;
+    }
+
+    return r == 10;
+}
+
+fn uint_len(i: uint) -> uint {
+
+    if i < 10 {
+        return 1;
+    }
+
+    let ret = (i as f64).log10().ceil() as uint;
+
+    if is_pwr_ten(i) {
+        return ret +1;
+    }
+
+    ret
+}
+
+#[test]
+fn test_int_len() {
+
+    for i in range(0u, 10002) {
+        let s = format!("{:u}", i);
+        //assert_eq!(s.len(), int_len(i));
+        println!("{:u} {}", i, uint_len(i));
+    }
+}
+
+#[test]
+fn test_is_pwr_ten() {
+
+    for i in range(0u, 1002) {
+        if i == 10 || i == 100 || i == 1000 {
+            assert_eq!(is_pwr_ten(i), true);
+        }
+        else {
+            assert_eq!(is_pwr_ten(i), false);
+        }
+    }
+}
+
 fn wc<'r, T: Buffer>(lines : &'r mut Lines<'r, T>) -> Result<WordCount, IoError> {
     let mut ret : WordCount = WordCount { lines: 0u, words: 0u, chars: 0u, bytes: 0u };
 
@@ -86,32 +140,35 @@ fn parse_args(args: Vec<String>) -> (Cfg, Vec<String>) {
 }
 
 //newline, word, character, byte, maximum line length
-fn print_results(wc : &WordCount, cfg: &Cfg, path: &str) {
+fn print_results(results : &Vec<(WordCount, &str)>, cfg: &Cfg) {
 
-    let mut buf = String::new();
+    for i in results.iter() {
 
-    if cfg.line_count {
-        buf = format!("{:u}", wc.lines);
+        let (wc, path) = *i;
+
+        let mut fmtbuf: String;
+
+        if cfg.line_count {
+            fmtbuf = format!(" {:u}", wc.lines);
+        }
+        else {
+            fmtbuf = String::from_str("");
+        }
+
+        //TODO: add creates new object, investigate things like extend
+        if cfg.word_count {
+            fmtbuf = format!("{:s} {:u}", fmtbuf, wc.words);
+        }
+        if cfg.char_count {
+            fmtbuf = format!("{:s} {:u}", fmtbuf, wc.words);
+        }
+        if cfg.byte_count {
+            fmtbuf = format!("{:s} {:u}", fmtbuf, wc.words);
+        }
+
+        println!("{:s} {:s}", fmtbuf, path);
     }
 
-    //TODO: add creates new object, investigate things like extend
-    if cfg.word_count {
-        buf = buf.add(&format!(" {:u}", wc.words));
-    }
-    if cfg.char_count {
-        buf = buf.add(&format!(" {:u}", wc.chars));
-    }
-    if cfg.byte_count {
-        buf = buf.add(&format!(" {:u}", wc.bytes));
-    }
-
-    let mut sbuf = buf.as_slice();
-    
-    if sbuf.char_at(0) == ' ' {
-        sbuf = sbuf.slice_from(1);
-    }
-
-    println!("{:s} {:s}", sbuf, path);
 }
 
 fn main() {
@@ -124,6 +181,7 @@ fn main() {
     }
     
     let mut total : WordCount = WordCount { lines: 0u, words: 0u, chars: 0u, bytes: 0u };
+    let mut results = Vec::with_capacity(paths.len());
 
     for path_i in paths.iter() {
 
@@ -144,11 +202,13 @@ fn main() {
         };
 
         total.sum(&res);
-        print_results(&res, &cfg, path);
+        results.push((res, path));
     }
 
     if paths.len() > 1 {
-        print_results(&total, &cfg, "total");
+        results.push((total, "total"));
     }
+
+    print_results(&results, &cfg);
 
 }
