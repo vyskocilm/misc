@@ -6,12 +6,13 @@
  *  author: michal.vyskocil@gmail.com
  *
  * TODO:
- *   * output is not properly formatted
  *   * word splitting is done on space only, where manual page claims whitespace
+ *   * it is twelve times slower than GNU wc, needs profiling!
  */
 
 use std::io::{BufferedReader, Reader, File, Lines, Buffer, IoError};
 use std::os::args;
+use std::cmp::max;
 
 #[deriving(Show)]
 pub struct WordCount {
@@ -139,31 +140,59 @@ fn parse_args(args: Vec<String>) -> (Cfg, Vec<String>) {
     (cfg, paths)
 }
 
+fn spaces(n: uint) -> String {
+    let mut ret = String::with_capacity(n);
+    for _ in range(0, n) {
+        ret.push(' ');
+    }
+    ret
+}
+
+fn uipad(i: uint, maxlen: uint) -> String {
+    let strlen = uint_len(i);
+    if strlen >= maxlen {
+        return format!("{:u}", i);
+    }
+    return format!("{:s}{:u}", spaces(maxlen - strlen), i);
+}
+
 //newline, word, character, byte, maximum line length
 fn print_results(results : &Vec<(WordCount, &str)>, cfg: &Cfg) {
 
-    for i in results.iter() {
+    let mut lines_maxlen = 0u;
+    let mut words_maxlen = 0u;
+    let mut chars_maxlen = 0u;
+    let mut bytes_maxlen = 0u;
 
+    for &(wc, _) in results.iter() {
+        lines_maxlen = max(lines_maxlen, wc.lines);
+        words_maxlen = max(words_maxlen, wc.words);
+        chars_maxlen = max(chars_maxlen, wc.chars);
+        bytes_maxlen = max(bytes_maxlen, wc.bytes);
+    }
+    lines_maxlen = uint_len(lines_maxlen);
+    words_maxlen = uint_len(words_maxlen);
+    chars_maxlen = uint_len(chars_maxlen);
+    bytes_maxlen = uint_len(bytes_maxlen);
+
+    for i in results.iter() {
         let (wc, path) = *i;
 
-        let mut fmtbuf: String;
+        let mut fmtbuf = String::from_str("");
 
         if cfg.line_count {
-            fmtbuf = format!(" {:u}", wc.lines);
-        }
-        else {
-            fmtbuf = String::from_str("");
+            fmtbuf = format!("{:s} {:s}", fmtbuf, uipad(wc.lines, lines_maxlen));
         }
 
-        //TODO: add creates new object, investigate things like extend
+        //TODO: format! creates new object, investigate things like extend
         if cfg.word_count {
-            fmtbuf = format!("{:s} {:u}", fmtbuf, wc.words);
+            fmtbuf = format!("{:s} {:s}", fmtbuf, uipad(wc.words, words_maxlen));
         }
         if cfg.char_count {
-            fmtbuf = format!("{:s} {:u}", fmtbuf, wc.words);
+            fmtbuf = format!("{:s} {:s}", fmtbuf, uipad(wc.chars, chars_maxlen));
         }
         if cfg.byte_count {
-            fmtbuf = format!("{:s} {:u}", fmtbuf, wc.words);
+            fmtbuf = format!("{:s} {:s}", fmtbuf, uipad(wc.bytes, bytes_maxlen));
         }
 
         println!("{:s} {:s}", fmtbuf, path);
