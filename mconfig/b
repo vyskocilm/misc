@@ -1,0 +1,9 @@
+#!/bin/bash
+
+MLM_INCLUDE=${MLM_INCLUDE:-/home/mvyskocil/usr/include}
+MLM_LDPATH=${MLM_LDPATH:-/home/mvyskocil/usr/lib}
+MLM_LIBS=${MLM_LIBS:- -lzmq -lczmq -lmlm}
+CC=${CC:-gcc}
+
+${CC} -g -o c -I ${MLM_INCLUDE} mclient.c -L ${MLM_LDPATH} ${MLM_LIBS}
+${CC} -g -o m -I ${MLM_INCLUDE} mconfig.c -L ${MLM_LDPATH} ${MLM_LIBS}
