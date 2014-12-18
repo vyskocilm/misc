@@ -57,7 +57,6 @@ int main() {
     assert(config);
 
     zmsg_t *msg_config = s_load_config(config);
-
     assert (msg_config);
 
     r =  mlm_client_set_producer (client, "config");
@@ -71,7 +70,7 @@ int main() {
 
     while (!zpoller_terminated(poller)) {
 
-        zsock_t *sock = (zsock_t*) zpoller_wait (poller, 5000);
+        zsock_t *sock = (zsock_t*) zpoller_wait (poller, 700);
 
         if (!sock) {
             //polling is not that nice, but enough for our case ...
@@ -84,8 +83,11 @@ int main() {
 
                 zmsg_destroy(&msg_config);
                 msg_config = s_load_config(config);
+                assert (msg_config);
 
-                mlm_client_send(client, "config", &msg_config);
+                zmsg_t *msg2 = zmsg_dup(msg_config);
+                assert(msg2);
+                mlm_client_send(client, "config", &msg2);
                 printf("PUB:config: %s\n", zconfig_resolve(config, "root/value", "(null)"));
             }
             continue;
