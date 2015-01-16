@@ -1,9 +1,22 @@
 #!/bin/bash
 
+die() {
+    echo "${@}" >&2
+    exit 1
+}
+
 MLM_INCLUDE=${MLM_INCLUDE:-/home/mvyskocil/usr/include}
 MLM_LDPATH=${MLM_LDPATH:-/home/mvyskocil/usr/lib}
+MLM_LIBS=${MLM_LIBS:- $(pkg-config --silence-errors --libs libmlm)}
 MLM_LIBS=${MLM_LIBS:- -lzmq -lczmq -lmlm}
+
+[[ -d "${MLM_INCLUDE}" ]] || MLM_INCLUDE=/usr/include
+[[ -d "${MLM_LDPATH}" ]] || MLM_LDPATH=/usr/lib64
+[[ -d "${MLM_LDPATH}" ]] || MLM_LDPATH=/usr/lib
+
 CC=${CC:-gcc}
+
+set -x
 
 ${CC} -g -o c -I ${MLM_INCLUDE} mclient.c -L ${MLM_LDPATH} ${MLM_LIBS}
 ${CC} -g -o m -I ${MLM_INCLUDE} mconfig.c -L ${MLM_LDPATH} ${MLM_LIBS}
