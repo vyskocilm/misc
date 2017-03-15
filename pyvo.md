@@ -16,6 +16,7 @@
 ## Unix pipes
 
  * pass data from one process to an another one
+
    $ cat /etc/passwd | wc -l
    42
 
